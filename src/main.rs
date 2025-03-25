@@ -9,7 +9,7 @@ use rand::Rng;
 use tokio::{time};
 
 const REPO_URL: &str = "https://github.com/veygo-rent/veygo-httpd-rust.git";
-const CLONE_DIR: &str = "veygo-httpd-rust";
+const CLONE_DIR: &str = "target/veygo-httpd-rust";
 const FORWARD_PORT: u16 = 8000;
 
 fn get_random_port() -> Option<u16> {
@@ -47,17 +47,36 @@ fn start_server(port: u16) -> Option<Child> {
     Command::new("./target/release/veygo-httpd-rust".to_string())
         .arg(port.to_string())
         .current_dir(CLONE_DIR)
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit())
         .spawn()
         .ok()
 }
 
-fn setup_port_forward(from_port: u16, to_port: u16) {
-    let _ = Command::new("iptables")
-        .args(&["-t", "nat", "-A", "PREROUTING", "-p", "tcp",
-                "--dport", &from_port.to_string(), "-j", "REDIRECT", "--to-port", &to_port.to_string()])
-        .status();
+async fn setup_port_forward_tokio(from_port: u16, to_port: u16) {
+    tokio::spawn(async move {
+        let listener = tokio::net::TcpListener::bind(("127.0.0.1", from_port)).await.unwrap();
+
+        while let Ok((inbound, _)) = listener.accept().await {
+            match tokio::net::TcpStream::connect(("127.0.0.1", to_port)).await {
+                Ok(outbound) => {
+                    // Spawn a single task for the entire forwarding logic
+                    tokio::spawn(async move {
+                        let (mut ri, mut wi) = tokio::io::split(inbound);
+                        let (mut ro, mut wo) = tokio::io::split(outbound);
+
+                        // Copy inbound → outbound and outbound → inbound in parallel
+                        let client_to_server = tokio::io::copy(&mut ri, &mut wo);
+                        let server_to_client = tokio::io::copy(&mut ro, &mut wi);
+
+                        // Run both copies concurrently
+                        let _ = tokio::join!(client_to_server, server_to_client);
+                    });
+                }
+                Err(e) => eprintln!("Failed to connect to target: {}", e),
+            }
+        }
+    });
 }
 
 fn clone_or_pull_repo() {
@@ -84,7 +103,7 @@ async fn main() {
     let port = get_random_port().expect("No available ports");
     if build_project() {
         if let Some(new_child) = start_server(port) {
-            setup_port_forward(FORWARD_PORT, port);
+            setup_port_forward_tokio(FORWARD_PORT, port).await;
             child = Some(new_child);
             println!("Server running on port {}, forwarded to {}", port, FORWARD_PORT);
         }
@@ -96,7 +115,7 @@ async fn main() {
         let child_arc = Arc::clone(&child_arc);
         tokio::spawn(async move {
             loop {
-                time::sleep(Duration::from_secs(10)).await;
+                time::sleep(Duration::from_secs(3600)).await;
                 clone_or_pull_repo();
                 if let Some(new_commit) = get_commit_id() {
                     if new_commit != current_commit {
@@ -105,7 +124,7 @@ async fn main() {
                         if build_project() {
                             if let Some(new_port) = get_random_port() {
                                 if let Some(new_child) = start_server(new_port) {
-                                    setup_port_forward(FORWARD_PORT, new_port);
+                                    setup_port_forward_tokio(FORWARD_PORT, new_port).await;
                                     if let Some(mut old_child) = child_arc.lock().unwrap().take() {
                                         let _ = old_child.kill();
                                         println!("Old server killed.");
