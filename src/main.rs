@@ -102,6 +102,12 @@ fn clone_or_pull_repo() {
         .current_dir(CLONE_DIR)
         .status();
 
+    let ls = Command::new("ls")
+        .current_dir(CLONE_DIR)
+        .output()
+        .ok().unwrap();
+    println!("{}", String::from_utf8_lossy(&ls.stdout));
+
     match result {
         Ok(status) if status.success() => {
             println!("Diesel migrations ran successfully.");
