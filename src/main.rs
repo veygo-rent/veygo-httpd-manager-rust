@@ -92,6 +92,27 @@ fn clone_or_pull_repo() {
             .arg(CLONE_DIR)
             .status();
     }
+    println!("Running Diesel migrations...");
+    let result = Command::new("diesel")
+        .arg("migration")
+        .arg("run")
+        // If you don't have DATABASE_URL in your environment already,
+        // you can pass it explicitly with .env("DATABASE_URL", "postgres://..."):
+        // .env("DATABASE_URL", "postgres://veygo:secret@db:5432/veygo")
+        .current_dir(CLONE_DIR)
+        .status();
+
+    match result {
+        Ok(status) if status.success() => {
+            println!("Diesel migrations ran successfully.");
+        }
+        Ok(status) => {
+            eprintln!("Diesel migrations exited with status code: {:?}", status.code());
+        }
+        Err(err) => {
+            eprintln!("Failed to run Diesel migrations: {}", err);
+        }
+    }
 }
 
 #[tokio::main]
