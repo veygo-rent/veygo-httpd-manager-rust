@@ -16,7 +16,7 @@ fn get_random_port() -> Option<u16> {
     let mut rng = rand::rng();
     for _ in 0..10 {
         let port = rng.random_range(8001..9000);
-        if TcpListener::bind(("127.0.0.1", port)).is_ok() {
+        if TcpListener::bind(("0.0.0.0", port)).is_ok() {
             return Some(port);
         }
     }
@@ -55,10 +55,10 @@ fn start_server(port: u16) -> Option<Child> {
 
 async fn setup_port_forward_tokio(from_port: u16, to_port: u16) {
     tokio::spawn(async move {
-        let listener = tokio::net::TcpListener::bind(("127.0.0.1", from_port)).await.unwrap();
+        let listener = tokio::net::TcpListener::bind(("0.0.0.0", from_port)).await.unwrap();
 
         while let Ok((inbound, _)) = listener.accept().await {
-            match tokio::net::TcpStream::connect(("127.0.0.1", to_port)).await {
+            match tokio::net::TcpStream::connect(("0.0.0.0", to_port)).await {
                 Ok(outbound) => {
                     // Spawn a single task for the entire forwarding logic
                     tokio::spawn(async move {
