@@ -96,17 +96,8 @@ fn clone_or_pull_repo() {
     let result = Command::new("diesel")
         .arg("migration")
         .arg("run")
-        // If you don't have DATABASE_URL in your environment already,
-        // you can pass it explicitly with .env("DATABASE_URL", "postgres://..."):
-        // .env("DATABASE_URL", "postgres://veygo:secret@db:5432/veygo")
         .current_dir(CLONE_DIR)
         .status();
-
-    let ls = Command::new("ls")
-        .current_dir(CLONE_DIR)
-        .output()
-        .ok().unwrap();
-    println!("{}", String::from_utf8_lossy(&ls.stdout));
 
     match result {
         Ok(status) if status.success() => {
