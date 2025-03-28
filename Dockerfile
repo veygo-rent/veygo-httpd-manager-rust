@@ -4,9 +4,9 @@ WORKDIR /app
 
 COPY . ./
 
-RUN apt update && apt install git -y
+RUN apt update && apt install curl pkg-config git libssl-dev libsodium-dev libpq-dev -y
 
-RUN curl --proto '=https' --tlsv1.2 -LsSf https://github.com/diesel-rs/diesel/releases/latest/download/diesel_cli-installer.sh | sh
+RUN cargo install diesel_cli --no-default-features --features postgres
 
 RUN cargo build --release
 
