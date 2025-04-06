@@ -96,24 +96,6 @@ fn clone_or_pull_repo() {
             .arg(CLONE_DIR)
             .status();
     }
-    println!("Running Diesel migrations...");
-    let result = Command::new("diesel")
-        .arg("migration")
-        .arg("run")
-        .current_dir(CLONE_DIR)
-        .status();
-
-    match result {
-        Ok(status) if status.success() => {
-            println!("Diesel migrations ran successfully.");
-        }
-        Ok(status) => {
-            eprintln!("Diesel migrations exited with status code: {:?}", status.code());
-        }
-        Err(err) => {
-            eprintln!("Failed to run Diesel migrations: {}", err);
-        }
-    }
 }
 
 #[tokio::main]
@@ -144,6 +126,23 @@ async fn main() {
                         println!("New commit found. Rebuilding...");
                         current_commit = new_commit;
                         if build_project() {
+                            println!("Running Diesel migrations...");
+                            let result = Command::new("diesel")
+                                .arg("migration")
+                                .arg("run")
+                                .current_dir(CLONE_DIR)
+                                .status();
+                            match result {
+                                Ok(status) if status.success() => {
+                                    println!("Diesel migrations ran successfully.");
+                                }
+                                Ok(status) => {
+                                    eprintln!("Diesel migrations exited with status code: {:?}", status.code());
+                                }
+                                Err(err) => {
+                                    eprintln!("Failed to run Diesel migrations: {}", err);
+                                }
+                            }
                             if let Some(new_port) = get_random_port() {
                                 if let Some(new_child) = start_server(new_port) {
                                     if let Some(mut old_child) = child_arc.lock().unwrap().take() {
