@@ -137,7 +137,7 @@ async fn main() {
         let child_arc = Arc::clone(&child_arc);
         tokio::spawn(async move {
             loop {
-                time::sleep(Duration::from_secs(3600)).await;
+                time::sleep(Duration::from_secs(60)).await;
                 clone_or_pull_repo();
                 if let Some(new_commit) = get_commit_id() {
                     if new_commit != current_commit {
@@ -146,11 +146,11 @@ async fn main() {
                         if build_project() {
                             if let Some(new_port) = get_random_port() {
                                 if let Some(new_child) = start_server(new_port) {
-                                    setup_port_forward_tokio(FORWARD_PORT, new_port).await;
                                     if let Some(mut old_child) = child_arc.lock().unwrap().take() {
                                         let _ = old_child.kill();
                                         println!("Old server killed.");
                                     }
+                                    setup_port_forward_tokio(FORWARD_PORT, new_port).await;
                                     *child_arc.lock().unwrap() = Some(new_child);
                                     println!("New server running on port {}", new_port);
                                 }
