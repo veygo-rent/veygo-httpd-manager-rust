@@ -6,7 +6,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 use rand::Rng;
-use tokio::{time};
+use tokio::{time, task::JoinHandle};
 
 use std::net::IpAddr;
 use std::str::FromStr;
@@ -57,30 +57,33 @@ fn start_server(port: u16) -> Option<Child> {
         .ok()
 }
 
-async fn setup_port_forward_tokio(from_port: u16, to_port: u16) {
+async fn setup_port_forward_tokio(from_port: u16, to_port: u16) -> JoinHandle<()> {
     tokio::spawn(async move {
-        let listener = tokio::net::TcpListener::bind(("::0", from_port)).await.unwrap();
+        let listener = match tokio::net::TcpListener::bind(("::0", from_port)).await {
+            Ok(listener) => listener,
+            Err(e) => {
+                eprintln!("Failed to bind to forward port {}: {}", from_port, e);
+                return;
+            }
+        };
 
         while let Ok((inbound, _)) = listener.accept().await {
             match tokio::net::TcpStream::connect(("::0", to_port)).await {
                 Ok(outbound) => {
-                    // Spawn a single task for the entire forwarding logic
                     tokio::spawn(async move {
                         let (mut ri, mut wi) = tokio::io::split(inbound);
                         let (mut ro, mut wo) = tokio::io::split(outbound);
 
-                        // Copy inbound → outbound and outbound → inbound in parallel
                         let client_to_server = tokio::io::copy(&mut ri, &mut wo);
                         let server_to_client = tokio::io::copy(&mut ro, &mut wi);
 
-                        // Run both copies concurrently
                         let _ = tokio::join!(client_to_server, server_to_client);
                     });
                 }
                 Err(e) => eprintln!("Failed to connect to target: {}", e),
             }
         }
-    });
+    })
 }
 
 fn clone_or_pull_repo() {
@@ -103,11 +106,13 @@ async fn main() {
     clone_or_pull_repo();
     let mut current_commit = get_commit_id().unwrap_or_default();
     let mut child = None;
+    let forward_handle_arc = Arc::new(Mutex::new(None::<JoinHandle<()>>));
 
     let port = get_random_port().expect("No available ports");
     if build_project() {
         if let Some(new_child) = start_server(port) {
-            setup_port_forward_tokio(FORWARD_PORT, port).await;
+            let forward_handle = setup_port_forward_tokio(FORWARD_PORT, port).await;
+            *forward_handle_arc.lock().unwrap() = Some(forward_handle);
             child = Some(new_child);
             println!("Server running on port {}, forwarded to {}", port, FORWARD_PORT);
         }
@@ -117,6 +122,7 @@ async fn main() {
 
     let monitor_handle = {
         let child_arc = Arc::clone(&child_arc);
+        let forward_handle_arc = Arc::clone(&forward_handle_arc);
         tokio::spawn(async move {
             loop {
                 time::sleep(Duration::from_secs(60)).await;
@@ -149,7 +155,12 @@ async fn main() {
                                         let _ = old_child.kill();
                                         println!("Old server killed.");
                                     }
-                                    setup_port_forward_tokio(FORWARD_PORT, new_port).await;
+                                    if let Some(old_forward_handle) = forward_handle_arc.lock().unwrap().take() {
+                                        old_forward_handle.abort();
+                                        println!("Old forwarder aborted.");
+                                    }
+                                    let new_forward_handle = setup_port_forward_tokio(FORWARD_PORT, new_port).await;
+                                    *forward_handle_arc.lock().unwrap() = Some(new_forward_handle);
                                     *child_arc.lock().unwrap() = Some(new_child);
                                     println!("New server running on port {}", new_port);
                                 }
