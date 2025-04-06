@@ -155,7 +155,11 @@ async fn main() {
                                         let _ = old_child.kill();
                                         println!("Old server killed.");
                                     }
-                                    if let Some(old_forward_handle) = forward_handle_arc.lock().unwrap().take() {
+                                    let old_forward_handle = {
+                                        let mut lock = forward_handle_arc.lock().unwrap();
+                                        lock.take()
+                                    };
+                                    if let Some(old_forward_handle) = old_forward_handle {
                                         old_forward_handle.abort();
                                         let _ = old_forward_handle.await;
                                         println!("Old forwarder aborted.");
