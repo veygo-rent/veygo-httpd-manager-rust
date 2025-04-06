@@ -157,6 +157,7 @@ async fn main() {
                                     }
                                     if let Some(old_forward_handle) = forward_handle_arc.lock().unwrap().take() {
                                         old_forward_handle.abort();
+                                        let _ = old_forward_handle.await;
                                         println!("Old forwarder aborted.");
                                     }
                                     let new_forward_handle = setup_port_forward_tokio(FORWARD_PORT, new_port).await;
