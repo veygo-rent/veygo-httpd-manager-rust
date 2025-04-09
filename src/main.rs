@@ -90,6 +90,7 @@ fn clone_or_pull_repo() {
     if Path::new(CLONE_DIR).exists() {
         let _ = Command::new("git")
             .arg("pull")
+            .arg("-q")
             .current_dir(CLONE_DIR)
             .status();
     } else {
