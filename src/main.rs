@@ -101,6 +101,26 @@ fn clone_or_pull_repo() {
     }
 }
 
+fn run_migration() {
+    println!("Running Diesel migrations...");
+    let result = Command::new("diesel")
+        .arg("migration")
+        .arg("run")
+        .current_dir(CLONE_DIR)
+        .status();
+    match result {
+        Ok(status) if status.success() => {
+            println!("Diesel migrations ran successfully.");
+        }
+        Ok(status) => {
+            eprintln!("Diesel migrations exited with status code: {:?}", status.code());
+        }
+        Err(err) => {
+            eprintln!("Failed to run Diesel migrations: {}", err);
+        }
+    }
+}
+
 #[tokio::main]
 async fn main() {
     clone_or_pull_repo();
@@ -110,6 +130,7 @@ async fn main() {
 
     let port = get_random_port().expect("No available ports");
     if build_project() {
+        run_migration();
         if let Some(new_child) = start_server(port) {
             let forward_handle = setup_port_forward_tokio(FORWARD_PORT, port).await;
             *forward_handle_arc.lock().unwrap() = Some(forward_handle);
@@ -125,30 +146,14 @@ async fn main() {
         let forward_handle_arc = Arc::clone(&forward_handle_arc);
         tokio::spawn(async move {
             loop {
-                time::sleep(Duration::from_secs(60)).await;
+                time::sleep(Duration::from_secs(600)).await;
                 clone_or_pull_repo();
                 if let Some(new_commit) = get_commit_id() {
                     if new_commit != current_commit {
                         println!("New commit found. Rebuilding...");
                         current_commit = new_commit;
                         if build_project() {
-                            println!("Running Diesel migrations...");
-                            let result = Command::new("diesel")
-                                .arg("migration")
-                                .arg("run")
-                                .current_dir(CLONE_DIR)
-                                .status();
-                            match result {
-                                Ok(status) if status.success() => {
-                                    println!("Diesel migrations ran successfully.");
-                                }
-                                Ok(status) => {
-                                    eprintln!("Diesel migrations exited with status code: {:?}", status.code());
-                                }
-                                Err(err) => {
-                                    eprintln!("Failed to run Diesel migrations: {}", err);
-                                }
-                            }
+                            run_migration();
                             if let Some(new_port) = get_random_port() {
                                 if let Some(new_child) = start_server(new_port) {
                                     if let Some(mut old_child) = child_arc.lock().unwrap().take() {
