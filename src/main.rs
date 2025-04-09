@@ -146,7 +146,7 @@ async fn main() {
         let forward_handle_arc = Arc::clone(&forward_handle_arc);
         tokio::spawn(async move {
             loop {
-                time::sleep(Duration::from_secs(600)).await;
+                time::sleep(Duration::from_secs(60)).await;
                 clone_or_pull_repo();
                 if let Some(new_commit) = get_commit_id() {
                     if new_commit != current_commit {
