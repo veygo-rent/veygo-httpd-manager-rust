@@ -151,7 +151,7 @@ async fn main() {
                 clone_or_pull_repo();
                 if let Some(new_commit) = get_commit_id() {
                     if new_commit != current_commit {
-                        println!("New commit found. Rebuilding...");
+                        println!("New commit {} found. Rebuilding...", new_commit);
                         current_commit = new_commit;
                         if build_project() {
                             run_migration();
