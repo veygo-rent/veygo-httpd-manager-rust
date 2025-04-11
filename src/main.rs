@@ -10,6 +10,7 @@ use tokio::{time, task::JoinHandle};
 
 use std::net::IpAddr;
 use std::str::FromStr;
+use colored::Colorize;
 
 const REPO_URL: &str = "https://github.com/veygo-rent/veygo-httpd-rust.git";
 const CLONE_DIR: &str = "target/veygo-httpd-rust";
@@ -151,7 +152,7 @@ async fn main() {
                 clone_or_pull_repo();
                 if let Some(new_commit) = get_commit_id() {
                     if new_commit != current_commit {
-                        println!("New commit {} found. Rebuilding...", new_commit);
+                        println!("New commit {} found. Rebuilding...", new_commit.bold().blue());
                         current_commit = new_commit;
                         if build_project() {
                             run_migration();
