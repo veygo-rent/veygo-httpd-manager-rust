@@ -169,10 +169,10 @@ async fn main() {
                                     if let Some(old_forward_handle) = old_forward_handle {
                                         old_forward_handle.abort();
                                         let _ = old_forward_handle.await;
+                                        time::sleep(Duration::from_secs(5)).await;
                                         println!("Old forwarder aborted.");
                                     }
                                     // Introduce a short delay to allow the OS to release the port
-                                    time::sleep(Duration::from_secs(5)).await;
                                     let new_forward_handle = setup_port_forward_tokio(FORWARD_PORT, new_port).await;
                                     *forward_handle_arc.lock().unwrap() = Some(new_forward_handle);
                                     *child_arc.lock().unwrap() = Some(new_child);
