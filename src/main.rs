@@ -159,6 +159,7 @@ async fn main() {
                                 if let Some(new_child) = start_server(new_port) {
                                     if let Some(mut old_child) = child_arc.lock().unwrap().take() {
                                         let _ = old_child.kill();
+                                        let _ = old_child.wait();
                                         println!("Old server killed.");
                                     }
                                     let old_forward_handle = {
