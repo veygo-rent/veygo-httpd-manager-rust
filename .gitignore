@@ -17,3 +17,6 @@ target/
 .idea/
 /Cargo.lock
 .env
+
+# Mac
+**/.DS_Store

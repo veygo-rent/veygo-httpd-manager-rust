@@ -130,9 +130,9 @@ async fn main() {
     let mut child = None;
     let forward_handle_arc = Arc::new(Mutex::new(None::<JoinHandle<()>>));
 
+    run_migration();
     let port = get_random_port().expect("No available ports");
     if build_project() {
-        run_migration();
         if let Some(new_child) = start_server(port) {
             let forward_handle = setup_port_forward_tokio(FORWARD_PORT, port).await;
             *forward_handle_arc.lock().unwrap() = Some(forward_handle);
@@ -154,8 +154,8 @@ async fn main() {
                     if new_commit != current_commit {
                         println!("New commit {} found. Rebuilding...", new_commit.bold().blue());
                         current_commit = new_commit;
+                        run_migration();
                         if build_project() {
-                            run_migration();
                             if let Some(new_port) = get_random_port() {
                                 if let Some(new_child) = start_server(new_port) {
                                     if let Some(mut old_child) = child_arc.lock().unwrap().take() {
