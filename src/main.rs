@@ -90,6 +90,11 @@ async fn setup_port_forward_tokio(from_port: u16, to_port: u16) -> JoinHandle<()
 fn clone_or_pull_repo() {
     if Path::new(CLONE_DIR).exists() {
         let _ = Command::new("git")
+            .arg("reset")
+            .arg("--hard")
+            .current_dir(CLONE_DIR)
+            .status();
+        let _ = Command::new("git")
             .arg("pull")
             .arg("-q")
             .current_dir(CLONE_DIR)
