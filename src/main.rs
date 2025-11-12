@@ -13,7 +13,7 @@ use std::str::FromStr;
 use colored::Colorize;
 
 const REPO_URL: &str = "https://github.com/veygo-rent/veygo-httpd-rust.git";
-const CLONE_DIR: &str = "target/veygo-httpd-rust";
+const CLONE_DIR: &str = "/app/target/veygo-httpd-rust";
 const FORWARD_PORT: u16 = 8000;
 
 fn get_random_port() -> Option<u16> {
@@ -130,8 +130,8 @@ async fn main() {
     let mut child = None;
     let forward_handle_arc = Arc::new(Mutex::new(None::<JoinHandle<()>>));
 
-    run_migration();
     let port = get_random_port().expect("No available ports");
+    run_migration();
     if build_project() {
         if let Some(new_child) = start_server(port) {
             let forward_handle = setup_port_forward_tokio(FORWARD_PORT, port).await;
