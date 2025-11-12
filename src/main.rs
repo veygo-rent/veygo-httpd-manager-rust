@@ -101,7 +101,6 @@ fn clone_or_pull_repo() {
             .arg(CLONE_DIR)
             .status();
     }
-    run_migration()
 }
 
 fn run_migration(){
@@ -133,6 +132,7 @@ async fn main() {
 
     let port = get_random_port().expect("No available ports");
     if build_project() {
+        run_migration();
         if let Some(new_child) = start_server(port) {
             let forward_handle = setup_port_forward_tokio(FORWARD_PORT, port).await;
             *forward_handle_arc.lock().unwrap() = Some(forward_handle);
@@ -155,6 +155,7 @@ async fn main() {
                         println!("New commit {} found. Rebuilding...", new_commit.bold().blue());
                         current_commit = new_commit;
                         if build_project() {
+                            run_migration();
                             if let Some(new_port) = get_random_port() {
                                 if let Some(new_child) = start_server(new_port) {
                                     if let Some(mut old_child) = child_arc.lock().unwrap().take() {
