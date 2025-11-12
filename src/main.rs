@@ -101,9 +101,10 @@ fn clone_or_pull_repo() {
             .arg(CLONE_DIR)
             .status();
     }
+    run_migration()
 }
 
-fn run_migration() {
+fn run_migration(){
     println!("Running Diesel migrations...");
     let result = Command::new("diesel")
         .arg("migration")
@@ -126,13 +127,11 @@ fn run_migration() {
 #[tokio::main]
 async fn main() {
     clone_or_pull_repo();
-    run_migration();
     let mut current_commit = get_commit_id().unwrap_or_default();
     let mut child = None;
     let forward_handle_arc = Arc::new(Mutex::new(None::<JoinHandle<()>>));
 
     let port = get_random_port().expect("No available ports");
-    run_migration();
     if build_project() {
         if let Some(new_child) = start_server(port) {
             let forward_handle = setup_port_forward_tokio(FORWARD_PORT, port).await;
@@ -155,7 +154,6 @@ async fn main() {
                     if new_commit != current_commit {
                         println!("New commit {} found. Rebuilding...", new_commit.bold().blue());
                         current_commit = new_commit;
-                        run_migration();
                         if build_project() {
                             if let Some(new_port) = get_random_port() {
                                 if let Some(new_child) = start_server(new_port) {
