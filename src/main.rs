@@ -126,6 +126,7 @@ fn run_migration() {
 #[tokio::main]
 async fn main() {
     clone_or_pull_repo();
+    run_migration();
     let mut current_commit = get_commit_id().unwrap_or_default();
     let mut child = None;
     let forward_handle_arc = Arc::new(Mutex::new(None::<JoinHandle<()>>));
